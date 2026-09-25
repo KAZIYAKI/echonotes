@@ -1,4 +1,4 @@
-# EchoNotes Backend — Sprint 1 (partial)
+# EchoNotes Backend — Sprint 1 (Partial)
 
 Implements the three Sprint 1 stories currently marked **Done** on the Jira board:
 
@@ -50,7 +50,7 @@ curl -X POST http://localhost:4000/api/lectures \
 ```
 
 ## Note on the duration check (SCRUM-14)
-
+Edited Directly on Github
 The 120-minute duration limit is stubbed (`probeDurationSeconds` returns
 `null`) because checking real audio/video duration needs `ffprobe`, which
 isn't installed in this environment. In a full setup, swap that function for
