@@ -53,9 +53,10 @@ async function validateLectureFile(req, res, next) {
   next();
 }
 
-// Placeholder — swap for a real ffprobe call (e.g. via fluent-ffmpeg) in production.
+// TODO (#1): integrate ffprobe here to get real audio/video duration
+// instead of returning null. See fluent-ffmpeg for a Node wrapper.
 async function probeDurationSeconds(_filePath) {
-  return null; // unknown; skip the duration check until ffprobe is wired in
+  return null;
 }
 
 module.exports = validateLectureFile;
