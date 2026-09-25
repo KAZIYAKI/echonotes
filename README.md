@@ -1,4 +1,4 @@
-# EchoNotes Backend — Sprint 1 (Partial)
+# EchoNotes Backend — maintained by main
 
 Implements the three Sprint 1 stories currently marked **Done** on the Jira board:
 
