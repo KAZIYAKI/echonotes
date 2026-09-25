@@ -1,3 +1,4 @@
+   // TODO: wire up NotificationService for SCRUM-21 (email/push on DRAFT_READY)
 require("dotenv").config();
 
 const express = require("express");
