@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EchoNotes – Login</title><link rel="stylesheet" href="/style.css"></head><body>
+<header><span class="logo">🎧 EchoNotes</span></header>
+<main><div class="card auth">
+
+<!-- LOGIN -->
+<section id="v-login">
+  <h1>Welcome back</h1><p class="sub">Log in to turn lectures into study notes.</p>
+  <label>Username</label><input id="l-user" type="text" autocomplete="username">
+  <label>Password</label><input id="l-pass" type="password" autocomplete="current-password">
+  <button class="full" id="l-btn">Log in</button>
+  <div class="msg" id="l-msg"></div>
+  <div class="row"><button class="link" data-go="forgot">Forgot password?</button><button class="link" data-go="register">New user? Register</button></div>
+</section>
+
+<!-- REGISTER -->
+<section id="v-register" class="hidden">
+  <h1>Create account</h1><p class="sub">It takes 10 seconds.</p>
+  <label>Username</label><input id="r-user" type="text" autocomplete="username">
+  <label>E-mail (used for password recovery)</label><input id="r-email" type="email" autocomplete="email">
+  <label>Password (min 6 characters)</label><input id="r-pass" type="password" autocomplete="new-password">
+  <button class="full" id="r-btn">Register &amp; log in</button>
+  <div class="msg" id="r-msg"></div>
+  <div class="row"><button class="link" data-go="login">← Back to login</button></div>
+</section>
+
+<!-- FORGOT: step 1 username -> step 2 code -> step 3 new password -->
+<section id="v-forgot" class="hidden">
+  <h1>Reset password</h1>
+  <div id="f1">
+    <p class="sub">We will e-mail a 6-digit code to the address you registered with.</p>
+    <label>Username</label><input id="f-user" type="text">
+    <button class="full" id="f-send">Send code</button>
+  </div>
+  <div id="f2" class="hidden">
+    <p class="sub" id="f-sent"></p>
+    <label>Verification code</label><input id="f-code" type="text" inputmode="numeric" maxlength="6">
+    <button class="full" id="f-verify">Verify code</button>
+    <div class="row"><button class="link" id="f-resend">Resend code</button></div>
+  </div>
+  <div id="f3" class="hidden">
+    <p class="sub">Code verified ✔ Choose a new password.</p>
+    <label>New password (min 6 characters)</label><input id="f-new" type="password" autocomplete="new-password">
+    <label>Confirm new password</label><input id="f-new2" type="password" autocomplete="new-password">
+    <button class="full" id="f-save">Save password &amp; log in</button>
+  </div>
+  <div class="msg" id="f-msg"></div>
+  <div class="row"><button class="link" data-go="login">← Back to login</button></div>
+</section>
+
+</div></main>
+<script src="/app.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+function show(name) {
+  ['login','register','forgot'].forEach(n => $('v-' + n).classList.toggle('hidden', n !== name));
+  document.querySelectorAll('.msg').forEach(m => m.className = 'msg');
+}
+document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
+api('/api/me').then(({ data }) => { if (data.user) location.href = '/home'; });
+
+$('l-btn').onclick = async () => {
+  const r = await api('/api/login', { username: $('l-user').value.trim(), password: $('l-pass').value });
+  if (r.ok) return location.href = '/home';
+  if (r.data.error === 'not_registered') {
+    $('r-user').value = $('l-user').value.trim(); show('register');
+    return say($('r-msg'), r.data.message, 'info');
+  }
+  say($('l-msg'), r.data.message || r.data.error, 'err');
+};
+$('r-btn').onclick = async () => {
+  const r = await api('/api/register', { username: $('r-user').value.trim(), email: $('r-email').value, password: $('r-pass').value });
+  if (r.ok) return location.href = '/home';
+  say($('r-msg'), r.data.error, 'err');
+};
+async function sendCode() {
+  const r = await api('/api/forgot', { username: $('f-user').value.trim() });
+  if (!r.ok) {
+    if (r.data.error === 'not_registered') { say($('f-msg'), r.data.message, 'err'); return false; }
+    say($('f-msg'), r.data.error, 'err'); return false;
+  }
+  $('f1').classList.add('hidden'); $('f2').classList.remove('hidden');
+  $('f-sent').textContent = 'A 6-digit code was sent to ' + r.data.sentTo + '. It expires in 10 minutes.';
+  say($('f-msg'), 'Code sent. Check your inbox (and spam).', 'ok'); return true;
+}
+$('f-send').onclick = sendCode;
+$('f-resend').onclick = sendCode;
+$('f-verify').onclick = async () => {
+  const r = await api('/api/verify', { username: $('f-user').value.trim(), code: $('f-code').value });
+  if (!r.ok) return say($('f-msg'), r.data.error, 'err');
+  $('f2').classList.add('hidden'); $('f3').classList.remove('hidden');
+  say($('f-msg'), 'Correct code!', 'ok');
+};
+$('f-save').onclick = async () => {
+  if ($('f-new').value !== $('f-new2').value) return say($('f-msg'), 'Passwords do not match.', 'err');
+  const r = await api('/api/reset', { username: $('f-user').value.trim(), newPassword: $('f-new').value });
+  if (!r.ok) return say($('f-msg'), r.data.error, 'err');
+  location.href = '/home';
+};
+['l-pass','r-pass','f-code','f-new2'].forEach(id => $(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter') ({ 'l-pass': 'l-btn', 'r-pass': 'r-btn', 'f-code': 'f-verify', 'f-new2': 'f-save' }[id], $({ 'l-pass': 'l-btn', 'r-pass': 'r-btn', 'f-code': 'f-verify', 'f-new2': 'f-save' }[id]).click());
+}));
+</script></body></html>
