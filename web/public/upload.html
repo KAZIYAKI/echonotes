@@ -1,0 +1,76 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EchoNotes – Upload</title><link rel="stylesheet" href="/style.css"></head><body>
+<header><a class="logo" href="/home">🎧 EchoNotes</a><span>Hi, <b id="who"></b> &nbsp;<button class="ghost" onclick="logout()">Log out</button></span></header>
+<main><div class="card">
+  <a class="link" href="/home">← Back</a>
+  <h1 style="margin-top:10px">Upload a lecture</h1><p class="sub">Video or audio (mp3, wav, m4a, mp4, mkv, mov, webm…). Max 500 MB / 120 minutes.</p>
+
+  <div id="pick">
+    <input type="file" id="file" accept="audio/*,video/*,.mkv,.m4a" class="hidden">
+    <div class="drop" id="drop"><div style="font-size:42px">⬆️</div><b>Click to choose a file</b> from your computer<br><span class="sub" id="fname">or drag and drop it here</span></div>
+    <label>Title for your notes (optional)</label><input type="text" id="title" placeholder="e.g. Biology – Photosynthesis">
+    <button class="full" id="go" disabled>Upload &amp; generate notes</button>
+  </div>
+
+  <div id="prog" class="hidden">
+    <div class="steps"><span class="step" id="s1">1 Uploading</span><span class="step" id="s2">2 Transcribing speech</span><span class="step" id="s3">3 Structuring notes</span><span class="step" id="s4">4 Saved</span></div>
+    <div class="bar"><i id="bar"></i></div>
+    <p class="sub" id="status" style="margin-top:10px"></p>
+  </div>
+
+  <div id="result" class="hidden">
+    <h2 id="r-title"></h2>
+    <div class="chips" id="r-keys"></div>
+    <ul id="r-prev"></ul>
+    <iframe id="r-pdf" style="width:100%;height:65vh;border:1px solid #e5e7eb;border-radius:12px"></iframe>
+    <p style="margin-top:14px"><a class="btn" id="r-dl">Download PDF</a> &nbsp; <a class="btn ghost" href="/notes">Open in Past notes</a> &nbsp; <a class="btn ghost" href="/upload">Upload another</a></p>
+  </div>
+  <div class="msg" id="msg"></div>
+</div></main>
+<script src="/app.js"></script>
+<script>
+requireLogin();
+const $ = (id) => document.getElementById(id);
+let chosen = null;
+function setFile(f) { chosen = f; $('fname').textContent = f ? f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)' : 'or drag and drop it here'; $('go').disabled = !f; }
+$('drop').onclick = () => $('file').click();      // opens the file manager
+$('file').onchange = () => setFile($('file').files[0]);
+['dragover','dragenter'].forEach(e => $('drop').addEventListener(e, ev => { ev.preventDefault(); $('drop').classList.add('drag'); }));
+['dragleave','drop'].forEach(e => $('drop').addEventListener(e, ev => { ev.preventDefault(); $('drop').classList.remove('drag'); }));
+$('drop').addEventListener('drop', ev => setFile(ev.dataTransfer.files[0]));
+
+function stage(n) { for (let i = 1; i <= 4; i++) $('s' + i).className = 'step' + (i < n ? ' done' : i === n ? ' on' : ''); }
+
+$('go').onclick = () => {
+  const fd = new FormData(); fd.append('title', $('title').value); fd.append('media', chosen);
+  $('pick').classList.add('hidden'); $('prog').classList.remove('hidden'); stage(1);
+  const x = new XMLHttpRequest(); x.open('POST', '/api/upload');
+  x.upload.onprogress = (e) => { if (e.lengthComputable) { $('bar').style.width = (e.loaded / e.total * 30) + '%'; $('status').textContent = 'Uploading… ' + Math.round(e.loaded / e.total * 100) + '%'; } };
+  x.onload = () => {
+    let d = {}; try { d = JSON.parse(x.responseText); } catch {}
+    if (x.status !== 200) { $('prog').classList.add('hidden'); $('pick').classList.remove('hidden'); return say($('msg'), d.error || 'Upload failed.', 'err'); }
+    poll(d.id);
+  };
+  x.onerror = () => say($('msg'), 'Network error.', 'err');
+  x.send(fd);
+};
+async function poll(id) {
+  const r = await api('/api/notes/' + id); const n = r.data;
+  if (!r.ok && r.status !== 401 && r.status !== 404 && (poll.fails = (poll.fails || 0) + 1) < 5) return setTimeout(() => poll(id), 3000);
+  if (!r.ok) { $('prog').classList.add('hidden'); $('pick').classList.remove('hidden'); return say($('msg'), r.status === 401 ? 'You were logged out (server restarted). Refresh the page, log in, and upload again.' : (n.error || 'Lost track of this upload. Please upload again.'), 'err'); }
+  if (n.status === 'FAILED') { $('prog').classList.add('hidden'); $('pick').classList.remove('hidden'); return say($('msg'), 'Could not make notes: ' + n.error, 'err'); }
+  if (n.status === 'DONE') return finish(n);
+  if (n.status === 'UPLOADED') { stage(1); $('status').textContent = 'Waiting in queue…'; }
+  if (n.status === 'TRANSCRIBING') { stage(2); $('bar').style.width = (30 + n.progress * 55) + '%'; $('status').textContent = 'Listening to your lecture… (first run downloads the speech model, please wait)'; }
+  if (n.status === 'STRUCTURING') { stage(3); $('bar').style.width = '92%'; $('status').textContent = 'Building headings, bullets and glossary…'; }
+  setTimeout(() => poll(id), 3000);
+}
+function finish(n) {
+  stage(5); $('bar').style.width = '100%'; $('prog').classList.add('hidden'); $('result').classList.remove('hidden');
+  $('r-title').textContent = n.title + ' — saved to Past notes ✔';
+  $('r-keys').innerHTML = ''; (n.keywords || []).forEach(k => { const s = document.createElement('span'); s.textContent = k; $('r-keys').appendChild(s); });
+  $('r-prev').innerHTML = ''; (n.preview || []).forEach(t => { const li = document.createElement('li'); li.textContent = t; $('r-prev').appendChild(li); });
+  $('r-pdf').src = '/api/notes/' + n.id + '/pdf';
+  $('r-dl').href = '/api/notes/' + n.id + '/pdf?download=1';
+}
+</script></body></html>

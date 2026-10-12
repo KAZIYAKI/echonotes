@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EchoNotes – Home</title><link rel="stylesheet" href="/style.css"></head><body>
+<header><a class="logo" href="/home">🎧 EchoNotes</a><span>Hi, <b id="who"></b> &nbsp;<button class="ghost" onclick="logout()">Log out</button></span></header>
+<main>
+  <h1>What would you like to do?</h1><p class="sub">Pick a folder.</p>
+  <div class="folders">
+    <a class="folder" href="/upload"><div class="ico">📁</div><h2>Upload &amp; get notes</h2><p>Choose a video or audio file from your computer and get structured study notes.</p></a>
+    <a class="folder" href="/notes"><div class="ico">🗂️</div><h2>Your past notes</h2><p>Open your saved notes PDFs, one by one.</p></a>
+  </div>
+</main>
+<script src="/app.js"></script><script>requireLogin();</script></body></html>

@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EchoNotes – Past notes</title><link rel="stylesheet" href="/style.css"></head><body>
+<header><a class="logo" href="/home">🎧 EchoNotes</a><span>Hi, <b id="who"></b> &nbsp;<button class="ghost" onclick="logout()">Log out</button></span></header>
+<main><div class="card">
+  <a class="link" href="/home">← Back</a>
+  <h1 style="margin-top:10px">Your past notes</h1>
+  <p class="sub" id="empty" style="display:none">No notes yet. Go back and upload a lecture first.</p>
+  <div class="viewer hidden" id="viewer">
+    <div class="nav">
+      <button class="ghost" id="prev">← Previous</button>
+      <div style="text-align:center"><b id="t"></b><div class="sub" id="meta" style="margin:0"></div></div>
+      <button class="ghost" id="next">Next →</button>
+    </div>
+    <iframe id="pdf"></iframe>
+    <div class="nav"><a class="btn" id="dl">Download PDF</a><span class="sub" id="count" style="margin:0"></span></div>
+  </div>
+</div></main>
+<script src="/app.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let notes = [], i = 0;
+function render() {
+  const n = notes[i];
+  $('t').textContent = n.title;
+  $('meta').textContent = new Date(n.createdAt).toLocaleString();
+  $('pdf').src = '/api/notes/' + n.id + '/pdf';
+  $('dl').href = '/api/notes/' + n.id + '/pdf?download=1';
+  $('count').textContent = 'Note ' + (i + 1) + ' of ' + notes.length + ' (newest first)';
+  $('prev').disabled = i === 0; $('next').disabled = i === notes.length - 1;
+}
+$('prev').onclick = () => { i--; render(); };
+$('next').onclick = () => { i++; render(); };
+document.addEventListener('keydown', e => { if (!notes.length) return; if (e.key === 'ArrowLeft' && i > 0) { i--; render(); } if (e.key === 'ArrowRight' && i < notes.length - 1) { i++; render(); } });
+requireLogin().then(async (u) => {
+  if (!u) return;
+  const { data } = await api('/api/notes'); notes = data.notes || [];
+  if (!notes.length) return $('empty').style.display = 'block';
+  $('viewer').classList.remove('hidden'); render();
+});
+</script></body></html>
